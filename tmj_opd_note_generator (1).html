@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TMJ OPD Note Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        /* Custom scrollbar for textareas */
+        textarea::-webkit-scrollbar, div::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-thumb, div::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        div::-webkit-scrollbar-track { background: transparent; }
+        
+        /* Smooth scrolling for mobile auto-scroll */
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body class="text-gray-800">
+    <!-- Responsive Container: Stack on mobile (flex-col), side-by-side on desktop (lg:flex-row), full height only on desktop -->
+    <div class="max-w-7xl mx-auto lg:h-screen flex flex-col lg:flex-row p-3 sm:p-4 gap-4 lg:gap-6">
+        
+        <!-- Left Panel: Input Area -->
+        <div class="w-full lg:w-1/2 flex flex-col bg-white rounded-xl shadow-lg border border-gray-200 lg:h-full lg:overflow-hidden shrink-0 lg:shrink">
+            <!-- Tabs Header -->
+            <div class="flex border-b">
+                <button id="tab-btn-s" onclick="switchTab('s')" class="flex-1 py-3 font-bold bg-blue-50 text-blue-800 border-b-2 border-blue-500 transition-colors text-sm sm:text-base">填寫 S (Subjective)</button>
+                <button id="tab-btn-o" onclick="switchTab('o')" class="flex-1 py-3 font-bold text-gray-500 hover:bg-gray-50 transition-colors text-sm sm:text-base">填寫 O (Objective)</button>
+            </div>
+            
+            <!-- Scrollable Input Content (Scrolls internally on desktop, naturally expands on mobile) -->
+            <div class="flex-1 lg:overflow-y-auto p-4 lg:p-5 relative">
+                
+                <!-- Tab S Content -->
+                <div id="tab-s">
+                    <!-- CC & PI Builder -->
+                    <div class="mb-5 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <label class="block text-sm font-bold text-blue-900 mb-3 text-lg border-b border-blue-200 pb-1">Chief Complaint & PI 起手式</label>
+                        
+                        <!-- Referral Section -->
+                        <div class="mb-3">
+                            <label class="flex items-center font-bold text-blue-800 cursor-pointer mb-2 bg-white p-2.5 rounded border border-blue-300 shadow-sm w-fit hover:bg-blue-100 transition-colors text-sm sm:text-base">
+                                <input type="checkbox" id="is-referred" class="mr-2 h-4 w-4 accent-blue-600" onchange="toggleReferral()"> ⚠️ Referred by others? (轉診病患)
+                            </label>
+                            <div id="referral-details" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 bg-white p-3 rounded border border-blue-100">
+                                <div>
+                                    <label class="text-xs font-bold text-blue-700 block mb-1">Referred from (Dr. / Clinic)</label>
+                                    <!-- text-base prevents iOS auto-zoom on focus -->
+                                    <input type="text" id="ref-source" class="w-full p-2 border border-blue-300 rounded text-base lg:text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none" placeholder="e.g. Dr.黃于真 / LDC">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-blue-700 block mb-1">Purpose</label>
+                                    <select id="ref-purpose" class="w-full p-2 border border-blue-300 rounded text-base lg:text-sm bg-white focus:ring-1 focus:ring-blue-400 focus:outline-none">
+                                        <option value="TMJ evaluation" selected>TMJ evaluation</option>
+                                        <option value="pre-ortho TMJ examination">Pre-ortho TMJ examination</option>
+                                        <option value="pre-OGS TMJ evaluation">Pre-OGS TMJ evaluation</option>
+                                        <option value="further treatment">Further treatment</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Symptoms & Side -->
+                        <div class="mb-3">
+                            <label class="block text-xs font-bold text-blue-700 mb-1">Side & Symptoms (症狀與部位)</label>
+                            <div class="flex flex-col sm:flex-row gap-2 mb-2 items-start sm:items-center">
+                                <select id="symp-side" class="p-2 border border-blue-300 rounded text-base lg:text-sm bg-white font-bold text-gray-700 focus:outline-none w-full sm:w-auto" onchange="toggleSideOther()">
+                                    <option value="L't TMJ" selected>L't TMJ</option>
+                                    <option value="R't TMJ">R't TMJ</option>
+                                    <option value="bilateral TMJ">Bilateral TMJ</option>
+                                    <option value="L't">L't (無TMJ)</option>
+                                    <option value="R't">R't (無TMJ)</option>
+                                    <option value="bilateral">Bilateral (無TMJ)</option>
+                                    <option value="none">無特定部位</option>
+                                    <option value="other">其他自填...</option>
+                                </select>
+                                <input type="text" id="symp-side-other" class="hidden p-2 border border-blue-300 rounded text-base lg:text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none w-full sm:flex-1" placeholder="請輸入部位(如: lower jaw)...">
+                            </div>
+                            <div class="flex flex-wrap gap-2 text-sm mt-2 items-center">
+                                <label class="cursor-pointer flex items-center bg-white border border-gray-300 p-2 rounded shadow-sm hover:bg-gray-50"><input type="checkbox" class="symp-cb mr-2 h-4 w-4 accent-blue-600" value="noise sound" checked>Noise / Clicking</label>
+                                <label class="cursor-pointer flex items-center bg-white border border-gray-300 p-2 rounded shadow-sm hover:bg-gray-50"><input type="checkbox" class="symp-cb mr-2 h-4 w-4 accent-blue-600" value="pain" checked>Pain</label>
+                                <label class="cursor-pointer flex items-center bg-white border border-gray-300 p-2 rounded shadow-sm hover:bg-gray-50"><input type="checkbox" class="symp-cb mr-2 h-4 w-4 accent-blue-600" value="locking">Locking</label>
+                                <label class="cursor-pointer flex items-center bg-white border border-gray-300 p-2 rounded shadow-sm hover:bg-gray-50"><input type="checkbox" class="symp-cb mr-2 h-4 w-4 accent-blue-600" value="open mouth limitation">Mouth limited</label>
+                                <label class="cursor-pointer flex items-center bg-white border border-gray-300 p-2 rounded shadow-sm hover:bg-gray-50"><input type="checkbox" class="symp-cb mr-2 h-4 w-4 accent-blue-600" value="soreness over masseter">Soreness</label>
+                                <label class="cursor-pointer flex items-center bg-white border border-gray-300 p-2 rounded shadow-sm hover:bg-gray-50"><input type="checkbox" class="symp-cb mr-2 h-4 w-4 accent-blue-600" value="facial asymmetry">Facial asymmetry</label>
+                                <input type="text" id="symp-other" class="p-2 border border-gray-300 rounded text-base lg:text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none w-full sm:w-auto flex-1" placeholder="其他症狀...">
+                            </div>
+                        </div>
+
+                        <!-- Duration -->
+                        <div>
+                            <label class="block text-xs font-bold text-blue-700 mb-1">Duration (持續多久？)</label>
+                            <input type="text" id="pi-duration" value="several years" class="w-full p-2 border border-blue-300 rounded text-base lg:text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" placeholder="e.g. 3 months, several years">
+                        </div>
+                    </div>
+                    
+                    <!-- Dynamic Treatment History -->
+                    <div class="mb-5 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <div class="flex justify-between items-center mb-3 border-b border-purple-200 pb-2">
+                            <label class="font-bold text-purple-900 text-lg">Dynamic Treatment History (求診歷程)</label>
+                            <button onclick="addVisit()" class="px-3 py-1.5 bg-purple-600 text-white text-sm font-bold rounded shadow hover:bg-purple-700 transition-colors active:scale-95">+ Add Visit</button>
+                        </div>
+                        <div id="treatmentsContainer" class="space-y-4">
+                            <!-- JS injected visits will go here -->
+                        </div>
+                    </div>
+
+                    <!-- General History (PMH/PDH/Habits) -->
+                    <div class="mb-4 p-4 bg-yellow-50 rounded-lg border border-yellow-300">
+                        <label class="block font-bold text-yellow-900 mb-3 text-lg border-b border-yellow-200 pb-1">General History (PMH/PDH)</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">
+                            <div><label class="font-bold">Allergy:</label> <input type="text" id="hist-allergy" value="NKA" class="border border-yellow-300 p-2 w-full rounded mt-1 bg-white focus:outline-none focus:ring-1 focus:ring-yellow-400 text-base lg:text-sm"></div>
+                            <div><label class="font-bold">Occupation:</label> <input type="text" id="hist-occ" value="student" class="border border-yellow-300 p-2 w-full rounded mt-1 bg-white focus:outline-none focus:ring-1 focus:ring-yellow-400 text-base lg:text-sm"></div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <span class="font-bold text-sm block mb-1.5">PMH:</span>
+                            <div class="flex flex-wrap gap-2 text-sm">
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="pmh-ht" class="mr-1.5 h-4 w-4 accent-yellow-600">H/T</label>
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="pmh-cad" class="mr-1.5 h-4 w-4 accent-yellow-600">CAD</label>
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="pmh-dm" class="mr-1.5 h-4 w-4 accent-yellow-600">DM</label>
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="pmh-bp" class="mr-1.5 h-4 w-4 accent-yellow-600">Bisphosphonates</label>
+                                <label class="cursor-pointer flex items-center font-bold text-red-600 bg-red-50 px-2 py-1.5 rounded border border-red-200 shadow-sm hover:bg-red-100"><input type="checkbox" id="pmh-trauma" class="mr-1.5 h-4 w-4 accent-red-600" onchange="toggleTrauma()">Trauma</label>
+                            </div>
+                            
+                            <!-- Trauma Panel (Hidden by default) -->
+                            <div id="trauma-panel" class="hidden mt-3 p-3 bg-red-50 border border-red-200 rounded shadow-sm relative">
+                                <div class="text-xs font-bold text-red-700 mb-2 border-b border-red-200 pb-1">Trauma Event Details</div>
+                                <div class="grid grid-cols-1 gap-2">
+                                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                                        <input type="text" id="trauma-text" class="p-2 border border-red-300 rounded text-base lg:text-sm flex-1 w-full focus:outline-none focus:ring-1 focus:ring-red-400" placeholder="Short event (e.g. car accident on 2026/02)">
+                                        <label class="text-xs flex items-center cursor-pointer text-red-800 bg-white px-3 py-2 border border-red-300 rounded hover:bg-red-50 w-full sm:w-auto mt-1 sm:mt-0">
+                                            <input type="checkbox" id="trauma-link-cc" class="mr-2 h-4 w-4 accent-red-600" checked> 連動主訴(CC)
+                                        </label>
+                                    </div>
+                                    <textarea id="trauma-process" class="p-2 border border-red-300 rounded text-base lg:text-sm w-full focus:outline-none focus:ring-1 focus:ring-red-400" rows="3" placeholder="詳細處置經過 (將會自動插入PI段落)。例如: Open reduction and internal fixation was performed by 整外 at 2026/03/05..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <span class="font-bold text-sm block mb-1.5">PDH:</span>
+                            <div class="flex flex-wrap gap-2 text-sm">
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="pdh-od" class="mr-1.5 h-4 w-4 accent-yellow-600">OD</label>
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="pdh-endo" class="mr-1.5 h-4 w-4 accent-yellow-600">ENDO</label>
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="pdh-perio" class="mr-1.5 h-4 w-4 accent-yellow-600">Perio</label>
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="pdh-pros" class="mr-1.5 h-4 w-4 accent-yellow-600">Prosthesis</label>
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="pdh-os" class="mr-1.5 h-4 w-4 accent-yellow-600">OS</label>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <span class="font-bold text-sm block mb-1.5">Habits:</span>
+                            <div class="flex flex-wrap gap-2 text-sm">
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="hb-smoke" class="mr-1.5 h-4 w-4 accent-yellow-600">Smoker</label>
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="hb-drink" class="mr-1.5 h-4 w-4 accent-yellow-600">Drinking</label>
+                                <label class="cursor-pointer flex items-center bg-white px-2 py-1.5 rounded border border-yellow-200"><input type="checkbox" id="hb-betel" class="mr-1.5 h-4 w-4 accent-yellow-600">Betel nut</label>
+                                <label class="cursor-pointer flex items-center font-bold text-blue-700 bg-blue-50 px-2 py-1.5 rounded border border-blue-200"><input type="checkbox" id="hb-bruxism" class="mr-1.5 h-4 w-4 accent-blue-600" checked>Bruxism</label>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-1 text-sm pt-3 border-t border-yellow-200 text-gray-700 font-medium">
+                            <div>Fever (-) & TOCC: Nil</div>
+                            <div>- 接觸史/群聚史/傳染性疾病: no remarkable</div>
+                            <div>- Travel / Family history: no remarkable</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab O Content -->
+                <div id="tab-o" class="hidden">
+                    <!-- Life Style -->
+                    <div class="mb-5 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <label class="block font-bold mb-3 text-gray-800 text-lg border-b border-gray-300 pb-1">1. Life style</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div><label class="text-xs text-gray-500 font-bold block mb-1">Occupation</label><input type="text" id="ls-occ" value="student" class="border border-gray-300 p-2 rounded text-base lg:text-sm w-full focus:outline-none focus:ring-1 focus:ring-gray-400"></div>
+                            <div><label class="text-xs text-gray-500 font-bold block mb-1">Mental status</label><input type="text" id="ls-mental" value="normal" class="border border-gray-300 p-2 rounded text-base lg:text-sm w-full focus:outline-none focus:ring-1 focus:ring-gray-400"></div>
+                            <div><label class="text-xs text-gray-500 font-bold block mb-1">Sleeping quality</label><input type="text" id="ls-sleep" value="normal" class="border border-gray-300 p-2 rounded text-base lg:text-sm w-full focus:outline-none focus:ring-1 focus:ring-gray-400"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- OMS Finding (Red) -->
+                    <div class="mb-5 p-4 bg-red-50 rounded-lg border border-red-200">
+                        <label class="block font-bold text-red-900 mb-3 text-lg border-b border-red-200 pb-1">2. OMS finding (TMJ)</label>
+                        
+                        <!-- 防呆機制 -->
+                        <label class="flex items-center text-red-700 font-bold bg-red-100 p-3 rounded-lg mb-4 border border-red-300 shadow-sm cursor-pointer hover:bg-red-200 transition-colors text-sm sm:text-base">
+                            <input type="checkbox" id="oms-recent-surg" onchange="toggleLateral()" class="mr-3 h-5 w-5 accent-red-600 cursor-pointer flex-shrink-0">
+                            <span>⚠️ Patient had TMJ surgery within 3 months?</span>
+                        </label>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                            <div><label class="text-xs text-gray-600 font-bold block mb-1">VAS Now</label><input type="text" id="oms-vas" value="2-3" class="border border-gray-300 p-2 rounded text-base lg:text-sm w-full focus:outline-none focus:ring-1 focus:ring-red-400"></div>
+                            <div><label class="text-xs text-gray-600 font-bold block mb-1">VAS Max</label><input type="text" id="oms-vas-max" value="5-6" class="border border-gray-300 p-2 rounded text-base lg:text-sm w-full focus:outline-none focus:ring-1 focus:ring-red-400"></div>
+                            <div><label class="text-xs text-gray-600 font-bold block mb-1">Side</label>
+                                <select id="oms-vas-side" class="border border-gray-300 p-2 rounded text-base lg:text-sm w-full bg-white focus:outline-none focus:ring-1 focus:ring-red-400">
+                                    <option value="L't TMJ" selected>L't TMJ</option>
+                                    <option value="R't TMJ">R't TMJ</option>
+                                    <option value="Bilateral TMJ">Bilateral TMJ</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                            <div><label class="text-xs text-gray-600 font-bold block mb-1">MMO (mm)</label><input type="text" id="oms-mmo" value="25(locking)-->35" class="border border-gray-300 p-2 rounded text-base lg:text-sm w-full focus:outline-none focus:ring-1 focus:ring-red-400"></div>
+                            <div><label class="text-xs text-gray-600 font-bold block mb-1">Deviation</label><input type="text" id="oms-dev" value="no deviation" class="border border-gray-300 p-2 rounded text-base lg:text-sm w-full focus:outline-none focus:ring-1 focus:ring-red-400"></div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div class="relative">
+                                <label class="text-xs text-gray-600 font-bold mb-1 block">Lateral Rt (mm)</label>
+                                <input type="text" id="oms-lat-rt" value="6" class="border border-gray-300 p-2 rounded text-base lg:text-sm w-full focus:outline-none focus:ring-1 focus:ring-red-400 transition-colors">
+                            </div>
+                            <div class="relative">
+                                <label class="text-xs text-gray-600 font-bold mb-1 block">Lateral Lt (mm)</label>
+                                <input type="text" id="oms-lat-lt" value="8" class="border border-gray-300 p-2 rounded text-base lg:text-sm w-full focus:outline-none focus:ring-1 focus:ring-red-400 transition-colors">
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 mt-2 border-t border-red-200 pt-3">
+                            <div><label class="text-xs text-gray-600 font-bold block mb-1">Muscle</label><input type="text" id="oms-masseter" value="bliateral masseter m. soreness(+)" class="border border-gray-300 p-2 rounded w-full text-base lg:text-sm focus:outline-none focus:ring-1 focus:ring-red-400"></div>
+                            <div><label class="text-xs text-gray-600 font-bold block mb-1">Clicking</label><input type="text" id="oms-click" value="early clicking of left side." class="border border-gray-300 p-2 rounded w-full text-base lg:text-sm focus:outline-none focus:ring-1 focus:ring-red-400"></div>
+                            <div><label class="text-xs text-gray-600 font-bold block mb-1">Crepitus</label><input type="text" id="oms-crep" value="nil" class="border border-gray-300 p-2 rounded w-full text-base lg:text-sm focus:outline-none focus:ring-1 focus:ring-red-400"></div>
+                        </div>
+                    </div>
+
+                    <!-- Image Finding -->
+                    <div class="mb-5 bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                        <label class="block font-bold mb-3 text-indigo-900 text-lg border-b border-indigo-200 pb-1">3. Image finding</label>
+                        <div class="mb-3"><label class="text-xs text-indigo-700 font-bold block mb-1">Panorex - Condyle</label>
+                            <select id="img-condyle" class="w-full border border-indigo-300 p-2 rounded text-base lg:text-sm bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                                <option value="Condyle length shorten of R't and L't" selected>Condyle length shorten of R't and L't</option>
+                                <option value="Condyle length equal of R't/L't">Condyle length equal of R't/L't</option>
+                                <option value="R't condyle shorter">R't condyle shorter</option>
+                                <option value="L't condyle shorter">L't condyle shorter</option>
+                            </select>
+                        </div>
+                        <div class="mb-3"><label class="text-xs text-indigo-700 font-bold block mb-1">Impaction</label><input type="text" id="img-imp" value="#38, 48 is close to the IAN, #18, 28 is close to sinus" class="w-full border border-indigo-300 p-2 rounded text-base lg:text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"></div>
+                        <div class="mb-3"><label class="text-xs text-indigo-700 font-bold block mb-1">Prosthesis</label><input type="text" id="img-pro" value="nil" class="w-full border border-indigo-300 p-2 rounded text-base lg:text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"></div>
+                        <div class="mb-3"><label class="text-xs text-indigo-700 font-bold block mb-1">Missing</label><input type="text" id="img-mis" value="nil" class="w-full border border-indigo-300 p-2 rounded text-base lg:text-sm focus:outline-none focus:ring-1 focus:ring-indigo-400"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Generate Button Area -->
+            <div class="p-4 border-t bg-gray-50 rounded-b-xl lg:mt-auto">
+                <button onclick="generateNoteAndScroll()" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-lg shadow-md hover:bg-blue-700 hover:shadow-lg text-lg transition-all active:scale-95">Generate Note 🚀</button>
+            </div>
+        </div>
+
+        <!-- Right Panel: Output Area -->
+        <div id="output-panel-container" class="w-full lg:w-1/2 flex flex-col bg-white rounded-xl shadow-lg border border-gray-200 shrink-0 lg:shrink lg:h-full mt-4 lg:mt-0">
+            <!-- Output Tabs Header -->
+            <div class="flex border-b">
+                <button id="out-tab-btn-s" onclick="switchOutTab('s')" class="flex-1 py-3 font-bold bg-green-50 text-green-800 border-b-2 border-green-500 transition-colors text-sm sm:text-base">預覽與複製 S</button>
+                <button id="out-tab-btn-o" onclick="switchOutTab('o')" class="flex-1 py-3 font-bold text-gray-500 hover:bg-gray-50 transition-colors text-sm sm:text-base">預覽與複製 O</button>
+            </div>
+            
+            <!-- Output Textareas Content -->
+            <div class="flex-1 flex flex-col p-4 lg:p-5 relative">
+                <!-- S Output -->
+                <div id="out-tab-s" class="flex-1 flex flex-col w-full h-full">
+                    <!-- min-h-[300px] ensures text area is visible on mobile when natural height collapses -->
+                    <textarea id="result-s" class="flex-1 w-full p-4 border border-green-300 rounded focus:ring-2 focus:ring-green-500 focus:outline-none resize-none font-mono text-[14px] leading-relaxed bg-green-50/30 text-gray-800 shadow-inner min-h-[350px] lg:min-h-0" readonly></textarea>
+                    <button onclick="copyText('result-s', this)" class="mt-4 w-full bg-green-600 text-white font-bold py-3 sm:py-4 rounded-lg shadow-md hover:bg-green-700 transition-colors text-lg active:scale-95 flex items-center justify-center">Copy S <span class="ml-2">📋</span></button>
+                </div>
+                
+                <!-- O Output -->
+                <div id="out-tab-o" class="hidden flex-1 flex flex-col w-full h-full">
+                    <textarea id="result-o" class="flex-1 w-full p-4 border border-green-300 rounded focus:ring-2 focus:ring-green-500 focus:outline-none resize-none font-mono text-[14px] leading-relaxed bg-green-50/30 text-gray-800 shadow-inner min-h-[350px] lg:min-h-0" readonly></textarea>
+                    <button onclick="copyText('result-o', this)" class="mt-4 w-full bg-green-600 text-white font-bold py-3 sm:py-4 rounded-lg shadow-md hover:bg-green-700 transition-colors text-lg active:scale-95 flex items-center justify-center">Copy O <span class="ml-2">📋</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let txCounter = 0;
+
+        // UI 頁籤切換
+        function switchTab(tab) {
+            document.getElementById('tab-s').classList.toggle('hidden', tab !== 's');
+            document.getElementById('tab-o').classList.toggle('hidden', tab !== 'o');
+            
+            let btnS = document.getElementById('tab-btn-s');
+            let btnO = document.getElementById('tab-btn-o');
+            
+            if(tab === 's') {
+                btnS.className = "flex-1 py-3 font-bold bg-blue-50 text-blue-800 border-b-2 border-blue-500 transition-colors text-sm sm:text-base";
+                btnO.className = "flex-1 py-3 font-bold text-gray-500 hover:bg-gray-50 transition-colors text-sm sm:text-base";
+            } else {
+                btnO.className = "flex-1 py-3 font-bold bg-blue-50 text-blue-800 border-b-2 border-blue-500 transition-colors text-sm sm:text-base";
+                btnS.className = "flex-1 py-3 font-bold text-gray-500 hover:bg-gray-50 transition-colors text-sm sm:text-base";
+            }
+        }
+
+        function switchOutTab(tab) {
+            document.getElementById('out-tab-s').classList.toggle('hidden', tab !== 's');
+            document.getElementById('out-tab-o').classList.toggle('hidden', tab !== 'o');
+            
+            let btnS = document.getElementById('out-tab-btn-s');
+            let btnO = document.getElementById('out-tab-btn-o');
+            
+            if(tab === 's') {
+                btnS.className = "flex-1 py-3 font-bold bg-green-50 text-green-800 border-b-2 border-green-500 transition-colors text-sm sm:text-base";
+                btnO.className = "flex-1 py-3 font-bold text-gray-500 hover:bg-gray-50 transition-colors text-sm sm:text-base";
+            } else {
+                btnO.className = "flex-1 py-3 font-bold bg-green-50 text-green-800 border-b-2 border-green-500 transition-colors text-sm sm:text-base";
+                btnS.className = "flex-1 py-3 font-bold text-gray-500 hover:bg-gray-50 transition-colors text-sm sm:text-base";
+            }
+        }
+
+        // 轉診區塊開關
+        function toggleReferral() {
+            let isRef = document.getElementById('is-referred').checked;
+            let refDetails = document.getElementById('referral-details');
+            if (isRef) {
+                refDetails.classList.remove('hidden');
+            } else {
+                refDetails.classList.add('hidden');
+                document.getElementById('ref-source').value = "";
+            }
+            generateNote();
+        }
+
+        // 防呆: 3個月內手術禁用側方運動量測
+        function toggleLateral() {
+            let isRecent = document.getElementById('oms-recent-surg').checked;
+            let lt = document.getElementById('oms-lat-lt');
+            let rt = document.getElementById('oms-lat-rt');
+            if (isRecent) {
+                lt.value = ""; rt.value = "";
+                lt.disabled = true; rt.disabled = true;
+                lt.classList.add('bg-red-200', 'cursor-not-allowed', 'placeholder-red-400'); 
+                rt.classList.add('bg-red-200', 'cursor-not-allowed', 'placeholder-red-400');
+                lt.placeholder = "Locked"; rt.placeholder = "Locked";
+            } else {
+                lt.disabled = false; rt.disabled = false;
+                lt.classList.remove('bg-red-200', 'cursor-not-allowed', 'placeholder-red-400'); 
+                rt.classList.remove('bg-red-200', 'cursor-not-allowed', 'placeholder-red-400');
+                lt.value = "8"; rt.value = "6"; 
+            }
+            generateNote();
+        }
+
+        // 部位自填開關
+        function toggleSideOther() {
+            let sideVal = document.getElementById('symp-side').value;
+            let otherInput = document.getElementById('symp-side-other');
+            if (sideVal === 'other') {
+                otherInput.classList.remove('hidden');
+            } else {
+                otherInput.classList.add('hidden');
+                otherInput.value = ""; 
+            }
+            generateNote();
+        }
+
+        // Trauma 面板開關
+        function toggleTrauma() {
+            let isTrauma = document.getElementById('pmh-trauma').checked;
+            let panel = document.getElementById('trauma-panel');
+            if (isTrauma) {
+                panel.classList.remove('hidden');
+            } else {
+                panel.classList.add('hidden');
+            }
+            generateNote();
+        }
+
+        // 動態新增看診紀錄
+        function addVisit() {
+            txCounter++;
+            const id = `tx-${txCounter}`;
+            const container = document.getElementById('treatmentsContainer');
+            const div = document.createElement('div');
+            div.className = "relative bg-white p-3 sm:p-4 rounded-lg border border-purple-300 shadow-sm transition-all";
+            div.id = id;
+            div.innerHTML = `
+                <button onclick="document.getElementById('${id}').remove(); generateNote();" class="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold px-2 text-xl leading-none" title="Remove">&times;</button>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2 pr-8">
+                    <input type="text" class="tx-time p-2 border border-purple-200 rounded text-base lg:text-sm bg-purple-50 focus:bg-white focus:ring-1 focus:ring-purple-400 focus:outline-none w-full" placeholder="When? (e.g. 2023/8)">
+                    <input type="text" class="tx-place p-2 border border-purple-200 rounded text-base lg:text-sm bg-purple-50 focus:bg-white focus:ring-1 focus:ring-purple-400 focus:outline-none w-full" placeholder="Where? (e.g. 萬芳醫院)">
+                </div>
+                
+                <input type="text" class="tx-suggest w-full mb-2 p-2 border border-yellow-400 rounded text-base lg:text-sm bg-yellow-50 focus:bg-white focus:ring-1 focus:ring-yellow-500 focus:outline-none placeholder-yellow-600" placeholder="醫師發現與建議 (e.g. found TMJ shorten, suggested OGS)">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <select class="tx-type p-2 border border-purple-200 rounded text-base lg:text-sm bg-white focus:outline-none w-full">
+                        <option value="">Select Treatment...</option>
+                        <option value="warm packing and muscle relaxant">Medication (藥物/熱敷)</option>
+                        <option value="occlusal splint">Splint (咬合板)</option>
+                        <option value="orthodontic treatment">Ortho (齒顎矯正)</option>
+                        <option value="hyaluronic acid injection">HA Injection (玻尿酸)</option>
+                        <option value="TMJ surgery">TMJ surgery (關節手術)</option>
+                        <option value="orthognathic surgery">OGS (正顎手術)</option>
+                    </select>
+                    <select class="tx-outcome p-2 border border-purple-200 rounded text-base lg:text-sm bg-white focus:outline-none w-full">
+                        <option value="none" selected>N/A (不填寫結果)</option>
+                        <option value="but the symptom was still noted">No improve (沒效)</option>
+                        <option value="and the pain subsided temporarily but relapsed recently">Subsided but relapsed (暫時緩解又復發)</option>
+                        <option value="and the symptom improved slightly">Slightly improved (輕微改善)</option>
+                    </select>
+                </div>
+            `;
+            // Add event listeners
+            div.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('input', generateNote);
+                el.addEventListener('change', generateNote);
+            });
+            container.appendChild(div);
+        }
+
+        // Generate and Scroll for Mobile Users
+        function generateNoteAndScroll() {
+            generateNote();
+            // Scroll to output if on mobile (screen width < 1024px)
+            if (window.innerWidth < 1024) {
+                document.getElementById('output-panel-container').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }
+        }
+
+        // 核心產生器
+        function generateNote() {
+            // ============================================
+            // 產生 Subjective (S)
+            // ============================================
+            
+            // CC & PI Builder Data
+            let isRef = document.getElementById('is-referred').checked;
+            let refSource = document.getElementById('ref-source').value.trim() || 'LDC';
+            let refPurpose = document.getElementById('ref-purpose').value;
+            
+            let sideVal = document.getElementById('symp-side').value;
+            let side = sideVal === 'other' ? document.getElementById('symp-side-other').value.trim() : (sideVal === 'none' ? '' : sideVal);
+            
+            let duration = document.getElementById('pi-duration').value.trim() || "several years";
+            
+            let symps = [];
+            document.querySelectorAll('.symp-cb:checked').forEach(cb => symps.push(cb.value));
+            let otherSymp = document.getElementById('symp-other').value.trim();
+            if(otherSymp) symps.push(otherSymp);
+            
+            let sympStr = symps.length > 0 ? symps.join(' and ') : "problem";
+            
+            // Trauma data fetching
+            let thChecked = document.getElementById('pmh-trauma').checked;
+            let thText = thChecked ? document.getElementById('trauma-text').value.trim() : "";
+            let thLinkCc = thChecked ? document.getElementById('trauma-link-cc').checked : false;
+            let thProcess = thChecked ? document.getElementById('trauma-process').value.trim() : "";
+            
+            let ccTraumaSuffix = (thChecked && thLinkCc && thText) ? ` after ${thText}` : "";
+            let piTraumaSuffix = (thChecked && thLinkCc && thText) ? ` after ${thText}` : "";
+
+            // Generate CC
+            let ccText = "";
+            let sideTextForCC_Ref = side ? `${side} ` : "";
+            let sideTextForCC_Self = side ? ` of my ${side}` : "";
+
+            if (isRef) {
+                ccText = `Referred from ${refSource} for ${refPurpose}. Complained of ${sideTextForCC_Ref}${sympStr} for ${duration}${ccTraumaSuffix}.`;
+            } else {
+                ccText = `I found the ${sympStr}${sideTextForCC_Self} for ${duration}${ccTraumaSuffix}.`;
+            }
+            
+            // Generate PI Start
+            let sideTextForPI = side ? `${side} ` : "";
+            let pi = `This patient suffered from ${sideTextForPI}${sympStr} since ${duration} ago${piTraumaSuffix}. `;
+            
+            if (thChecked && thProcess) {
+                pi += `\n${thProcess}\n\n`;
+            }
+            
+            let txText = "";
+            let specialTxLines = [];
+            const txRows = document.querySelectorAll('#treatmentsContainer > div');
+            
+            txRows.forEach((row) => {
+                const time = row.querySelector('.tx-time').value.trim();
+                const place = row.querySelector('.tx-place').value.trim();
+                const suggest = row.querySelector('.tx-suggest').value.trim();
+                const type = row.querySelector('.tx-type').value;
+                const outcome = row.querySelector('.tx-outcome').value;
+
+                if (place || type || suggest) {
+                    let timeStr = time ? ` in ${time}` : "";
+                    let placeStr = place ? place : "clinic";
+                    
+                    if(txText === "") {
+                        txText += `According to patient's statement, patient came to ${placeStr} for further treatment${timeStr}. `;
+                    } else {
+                        txText += `Then, patient visited ${placeStr}${timeStr}. `;
+                    }
+                    
+                    if (suggest) {
+                        if (/^(suggest|found|prescrib|said|noted|advised|gave|arrange)/i.test(suggest)) {
+                            txText += `The doctor ${suggest}. `;
+                        } else if (suggest.toLowerCase().startsWith('dentist said')) {
+                            txText += `${suggest}. `;
+                        } else {
+                            txText += `${suggest.charAt(0).toUpperCase() + suggest.slice(1)}. `;
+                        }
+                    } else if (type && !suggest) {
+                        txText += `The doctor suggest patient for ${type}. `;
+                    }
+                    
+                    if (outcome !== "none") {
+                        let outcomeTime = time ? ` since ${time}` : ""; 
+                        txText += `However, ${outcome.replace('but ', '').replace('and ', '')}${outcome.includes('noted') ? outcomeTime : ''}. `;
+                    }
+
+                    if(type.includes('splint') || type.includes('ortho') || type.includes('surgery') || type.includes('OGS')) {
+                        let pretty = type;
+                        if(type.includes('splint')) pretty = 'Bite plate / Splint';
+                        else if(type.includes('ortho')) pretty = 'Ortho treatment';
+                        else if(type.includes('TMJ surgery')) pretty = 'TMJ surgery';
+                        else if(type.includes('orthognathic surgery')) pretty = 'Orthognathic surgery (OGS)';
+                        
+                        specialTxLines.push(`- ${pretty} by/at ${placeStr} on ${time || 'unknown date'}`);
+                    }
+                }
+            });
+
+            if (txText !== "") pi += txText + "\n";
+            pi += `Therefore, this patient came to our OPD for further treatment.`;
+            
+            if (specialTxLines.length > 0) pi += `\n\n${specialTxLines.join('\n')}`;
+            
+            let traumaBottomStr = thChecked ? (thText ? thText : "yes") : "Nil";
+            pi += `\n\nTrauma history: ${traumaBottomStr}\n\n`;
+
+            let allergy = document.getElementById('hist-allergy').value;
+            let occ = document.getElementById('hist-occ').value;
+            
+            let ht = document.getElementById('pmh-ht').checked ? "(+)" : "(-)";
+            let cad = document.getElementById('pmh-cad').checked ? "(+)" : "(-)";
+            let dm = document.getElementById('pmh-dm').checked ? "(+)" : "(-)";
+            let bp = document.getElementById('pmh-bp').checked ? "(+)" : "(-)";
+            let th = thChecked ? "(+)" : "(-)";
+            
+            let hasSys = (ht==="(+)" || cad==="(+)" || dm==="(+)" || bp==="(+)");
+            let pmhFirstLine = hasSys ? "Under medical control" : "Denied any systemic disease or drug allergy";
+            let pmhStr = `PMH: ${pmhFirstLine}\n          1.H/T ${ht}2.CAD ${cad}3.DM ${dm}4.Bisphosphonates ${bp} 5.Trauma history ${th}`;
+
+            let od = document.getElementById('pdh-od').checked ? "(+)" : "(-)";
+            let endo = document.getElementById('pdh-endo').checked ? "(+)" : "(-)";
+            let perio = document.getElementById('pdh-perio').checked ? "(+)" : "(-)";
+            let pros = document.getElementById('pdh-pros').checked ? "(+)" : "(-)";
+            let os = document.getElementById('pdh-os').checked ? "(+)" : "(-)";
+            let pdhStr = `PDH: 1. OD${od}  2. ENDO${endo} 3. Perio${perio} 4. Prosthesis${pros} 5. OS${os}`;
+            
+            let smo = document.getElementById('hb-smoke').checked ? "(+)" : "(-)";
+            let dri = document.getElementById('hb-drink').checked ? "(+)" : "(-)";
+            let bet = document.getElementById('hb-betel').checked ? "(+)" : "(-)";
+            let bru = document.getElementById('hb-bruxism').checked ? "(+)" : "(-)";
+            let hbStr = `Smoker:${smo}. Drinking:${dri}. Betel nut:${bet}. Bruxism:${bru}`;
+
+            // S 最終字串
+            let finalS = `CC: ${ccText}\n\n`;
+            finalS += `Present illness:\n${pi}`;
+            finalS += `History of allery: ${allergy}\nOccupation: ${occ}\n${pmhStr}\n${pdhStr}\n${hbStr}\n`;
+            finalS += `Fever (-) & TOCC: Nil\n- 接觸史/群聚史/傳染性疾病: no remarkable\n- Travel / Family history: no remarkable`;
+
+            document.getElementById('result-s').value = finalS;
+
+
+            // ============================================
+            // 產生 Objective (O)
+            // ============================================
+            let lsOcc = document.getElementById('ls-occ').value;
+            let lsMen = document.getElementById('ls-mental').value;
+            let lsSlp = document.getElementById('ls-sleep').value;
+            
+            let vasNow = document.getElementById('oms-vas').value;
+            let vasMax = document.getElementById('oms-vas-max').value;
+            let vasSide = document.getElementById('oms-vas-side').value;
+            
+            let mmo = document.getElementById('oms-mmo').value;
+            let dev = document.getElementById('oms-dev').value;
+            
+            let isRecent = document.getElementById('oms-recent-surg').checked;
+            let latText = isRecent ? "Not measured (surgery within 3 months)" : `Rt${document.getElementById('oms-lat-rt').value}mm/Lt${document.getElementById('oms-lat-lt').value}mm`;
+            
+            let masseter = document.getElementById('oms-masseter').value;
+            let click = document.getElementById('oms-click').value;
+            let crep = document.getElementById('oms-crep').value;
+            
+            let imgCondyle = document.getElementById('img-condyle').value;
+            let imgImp = document.getElementById('img-imp').value;
+            let imgPro = document.getElementById('img-pro').value;
+            let imgMis = document.getElementById('img-mis').value;
+
+            // O 最終字串
+            let finalO = `1.Life style:\n   - occupation: ${lsOcc}\n   - mental status: ${lsMen}\n   - sleeping quality: ${lsSlp}\n\n`;
+            finalO += `2.OMS finding:\n   TMJ\n    * TMJ Wilkes stage: \n`;
+            finalO += `   - VAS(${vasNow}/10, max:${vasMax}/10) of ${vasSide}\n`;
+            finalO += `   - mouth opening: normal, MMO: ${mmo}mm, Lateral movement:${latText}, ${dev}\n`;
+            finalO += `   - ${masseter}\n`;
+            finalO += `   - clicking: ${click}\n`;
+            finalO += `   - crepitus: ${crep}\n\n`;
+            finalO += `3. Image finding:\n`;
+            finalO += `      - Panorex: ${imgCondyle}\n`;
+            finalO += `        Impaction: ${imgImp}\n`;
+            finalO += `        Prosthesis: ${imgPro}\n`;
+            finalO += `        Missing: ${imgMis}\n`;
+            finalO += `        No other obvious abnormal bony lesion was noted\n`;
+            finalO += `      - TMJ views: Normal condylar translation`;
+
+            document.getElementById('result-o').value = finalO;
+        }
+
+        // 複製與按鈕動畫
+        function copyText(id, btn) {
+            const text = document.getElementById(id);
+            text.select();
+            document.execCommand('copy');
+            
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "Copied! ✅";
+            btn.classList.replace('bg-green-600', 'bg-gray-600');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.replace('bg-gray-600', 'bg-green-600');
+            }, 1500);
+        }
+
+        // 啟動時自動綁定監聽器與更新
+        window.onload = () => {
+            // 先加一筆空的讓畫面好看
+            addVisit();
+            
+            // 委派事件：監聽左半部所有輸入改變，即時更新預覽
+            document.querySelector('.w-full.lg\\:w-1\\/2.flex.flex-col').addEventListener('input', function(e) {
+                if(e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+                    generateNote();
+                }
+            });
+            document.querySelector('.w-full.lg\\:w-1\\/2.flex.flex-col').addEventListener('change', function(e) {
+                if(e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+                    generateNote();
+                }
+            });
+            
+            // 初始化產生一次
+            generateNote();
+        };
+    </script>
+</body>
+</html>
